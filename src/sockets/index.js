@@ -1,6 +1,6 @@
 const { Server } = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
-const { pub, sub } = require("../config/redis");
+const { pub, sub, redis } = require("../config/redis"); // add redis
 const { socketAuthMiddleware } = require("../middlewares/auth");
 const presence = require("./handlers/presence");
 const typing = require("./handlers/typing");
@@ -8,7 +8,7 @@ const messages = require("./handlers/messages");
 
 async function initSockets(server, corsOrigin) {
   const io = new Server(server, {
-    cors: { origin: corsOrigin, credentials: true }
+    cors: { origin: corsOrigin, credentials: true },
   });
 
   io.adapter(createAdapter(pub, sub));
@@ -16,9 +16,9 @@ async function initSockets(server, corsOrigin) {
 
   io.on("connection", (socket) => {
     socket.join(`user:${socket.user?.id || socket.handshake.query.id}`);
-    presence(io, socket);
+    presence(io, socket, redis);  // <-- pass redis
     typing(io, socket);
-    messages(io, socket);
+    messages(io, socket, redis);  // <-- pass redis
   });
 
   return io;

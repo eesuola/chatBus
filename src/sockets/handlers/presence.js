@@ -1,38 +1,33 @@
-const Redis = require("ioredis");
-const { redisUrl } = require("../../config/env");
-
-const redis = new Redis(redisUrl);
-
-module.exports = function presence(io, socket) {
+module.exports = function presence(io, socket, redis) {
   const uid = socket.user?.id || socket.handshake.query.id;
-  const role = socket.user?.role || socket.handshake.query.role || "guest";
-
-  if (!uid) return;
-
+  const role = socket.user?.role || socket.handshake.query.role || "customer";
   const key = `presence:${uid}`;
 
-  async function setOnline() {
-    await redis.hset(key, {
-      online: "1",
-      lastSeen: Date.now().toString(),
-      role
+  // Mark as online when connected
+  (async () => {
+    await redis.hset(
+      key,
+      "online", "1",
+      "lastSeen", Date.now().toString(),
+      "role", role
+    );
+    await redis.expire(key, 60 * 10); // 10 min TTL
+    io.emit("presence:update", { userId: uid, online: true, role });
+  })();
+
+  // Handle disconnect
+  socket.on("disconnect", async () => {
+    await redis.hset(
+      key,
+      "online", "0",
+      "lastSeen", Date.now().toString(),
+      "role", role
+    );
+    io.emit("presence:update", {
+      userId: uid,
+      online: false,
+      lastSeen: Date.now(),
+      role,
     });
-    await redis.expire(key, 60 * 10); // auto-expire in 10 minutes
-    io.emit("presence:update", { userId: uid, role, online: true });
-  }
-
-  async function setOffline() {
-    await redis.hset(key, {
-      online: "0",
-      lastSeen: Date.now().toString(),
-      role
-    });
-    io.emit("presence:update", { userId: uid, role, online: false, lastSeen: Date.now() });
-  }
-
-  // when connected
-  setOnline();
-
-  // when disconnected
-  socket.on("disconnect", setOffline);
+  });
 };

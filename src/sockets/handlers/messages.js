@@ -1,21 +1,24 @@
-const Redis = require("ioredis");
-const { redisUrl } = require("../../config/env");
+module.exports = function messages(io, socket, redis) {
+  // Send chat history when user connects
+  redis.lrange("messages", 0, -1).then((history) => {
+    const parsed = history.map((m) => JSON.parse(m));
+    socket.emit("messages:history", parsed);
+  });
 
-const redis = new Redis(process.env.REDIS_URL);
-
-module.exports = function messages(io, socket) {
   socket.on("message:send", async (data) => {
     const msg = {
       from: socket.user?.id || socket.handshake.query.id,
       role: socket.user?.role || socket.handshake.query.role || "customer",
       text: data.text,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
-    // Save message to Redis list
     await redis.rpush("messages", JSON.stringify(msg));
 
-    // Broadcast to everyone
     io.emit("message:new", msg);
+  });
+
+  socket.on("typing", (data) => {
+    socket.broadcast.emit("typing", data);
   });
 };

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Customer Chat - LiveChat</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
+
+</head>
+<body>
+  <div class="chat-container">
+    <h2>Customer Dashboard</h2>
+
+    <!-- Presence -->
+    <div class="presence">
+      <span id="agentStatus">Agent: Offline</span>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages" class="messages"></div>
+    <p id="typing"></p>
+
+    <!-- Chat input -->
+    <form id="chatForm">
+      <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const socket = io("/", { auth: { token }, query: { role: "customer" } });
+
+    const messagesDiv = document.getElementById("messages");
+    const typingDiv = document.getElementById("typing");
+    const agentStatus = document.getElementById("agentStatus");
+    const input = document.getElementById("messageInput");
+    const form = document.getElementById("chatForm");
+
+    // Load chat history
+    socket.on("messages:history", (history) => {
+      messagesDiv.innerHTML = "";
+      history.forEach(msg => appendMessage(msg));
+    });
+
+    // New message
+    socket.on("message:new", (msg) => appendMessage(msg));
+
+    // Typing indicator
+    socket.on("typing", (data) => {
+      typingDiv.innerText = `${data} is typing...`;
+      setTimeout(() => typingDiv.innerText = "", 1500);
+    });
+
+    // Presence update
+    socket.on("presence:update", (user) => {
+      if (user.role === "agent") {
+        if (user.online) {
+          agentStatus.innerText = `Agent: Online ✅`;
+        } else {
+          const lastSeen = new Date(user.lastSeen).toLocaleTimeString();
+          agentStatus.innerText = `Agent: Offline (last seen: ${lastSeen})`;
+        }
+      }
+    });
+
+    // Send message
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendMessage();
+    });
+
+    // Enter key support
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      } else {
+        socket.emit("typing", "Customer");
+      }
+    });
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      socket.emit("message:send", { text });
+      input.value = "";
+    }
+
+    function appendMessage(msg) {
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = `<strong>${msg.role}:</strong> ${msg.text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
@@ -22,13 +22,17 @@ module.exports = (sequelize, DataTypes) => {
       displayName: {
         type: DataTypes.STRING,
         allowNull: false,
+        field: "display_name", // maps to DB column
       },
       profile: {
         type: DataTypes.JSONB,
         allowNull: false,
         defaultValue: {},
       },
-      lastSeen: DataTypes.DATE,
+      lastSeen: {
+        type: DataTypes.DATE,
+        field: "last_seen", // maps to DB column
+      },
       name: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -39,7 +43,9 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
+      tableName: "users", // always lowercase plural in DB
       timestamps: true,
+      underscored: true, // automatically converts createdAt -> created_at
     }
   );
 
