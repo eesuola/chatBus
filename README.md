@@ -29,7 +29,7 @@ Auth: JWT (optional for guests)
 
  Setup
 # clone the repo
-git clone https://github.com/yourusername/chatbus.git
+git clone https://github.com/eesuola/chatbus.git
 cd chatbus
 
 # install dependencies
